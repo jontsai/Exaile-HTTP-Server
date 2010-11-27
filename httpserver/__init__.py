@@ -84,19 +84,19 @@ def get_hms_len(seconds):
     Get the duration of a track in h:mm:ss format
     """
     hours = int(math.floor(seconds / 3600))
-    minutes = int(math.floor((seconds % 3600) / 60))
-    if minutes < 10:
-        minutes = '0' + str(minutes)
+    mins = int(math.floor((seconds % 3600) / 60))
+    if mins < 10:
+        mins = '0' + str(mins)
     else:
-        minutes = str(minutes)
-    seconds = int(seconds) % 60
-    if seconds < 10:
-        seconds = '0' + str(seconds)
+        mins = str(mins)
+    secs = int(seconds % 60)
+    if secs < 10:
+        secs = '0' + str(secs)
     else:
-        seconds = str(seconds)
-    hms =  minutes + ':' + seconds
+        secs = str(secs)
+    hms =  mins + ':' + secs
     if hours > 0:
-        hms = str(hours) + ':' + duration
+        hms = str(hours) + ':' + secs
     return hms
 
 class TrackInfo:
@@ -125,7 +125,7 @@ class TrackInfo:
             try:
                 track_len = track.get_tag_display('__length')
                 self.infos['duration'] = cgi.escape(track_len)
-                hms = get_hms_len(int(track_len))
+                hms = get_hms_len(float(track_len))
                 self.infos['len'] = cgi.escape(hms)
             except Exception as e:
                 print e
@@ -202,6 +202,7 @@ def eh_page_file(r):
     r.end_headers()
 
     path = r.path
+    print "PATH: " + path
     if path == '/':
         path = '/index.html'
     data = open('%(rootdir)s/plugins/httpserver/data%(resource)s' % { 'rootdir': xdg.get_data_dirs()[0], 'resource': path } ).read()
@@ -249,9 +250,8 @@ def eh_page_rpc_action(r):
             seek_pos = int(args['s'][0])
             gobject.idle_add(APP.player.seek, seek_pos)
     elif path in actions:
-        callbacks = actions[path]
-        for callback in callbacks:
-            gobject.idle_add(callback)
+        callback = actions[path]
+        gobject.idle_add(callback)
 # end eh_page_rpc_action
 
 def eh_page_playlist_list(r):

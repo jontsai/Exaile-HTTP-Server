@@ -4,8 +4,8 @@ var eh_request_refresh_playlist = false;
 //var eh_request_refresh = false;
 var eh_request_refresh_id = Math.floor(Math.random() * 1000);
 var eh_request_refresh_window = new Array();
-var eh_data_loading = '<div id="loading"><img class="loading" src="/loading.gif" alt="Loading..."/></div>';
-var eh_data_playing = '<img src="/btn-play.png" alt="Playing..."/>';
+var eh_data_loading = '<div id="loading"><img class="loading" src="loading.gif" alt="Loading..."/></div>';
+var eh_data_playing = '<img src="btn-play.png" alt="Playing..."/>';
 
 var eh_tag_current = 1;
 var eh_capture_seek = false;
@@ -148,7 +148,7 @@ function eh_track_current_callback(page, xh) {
 	    eh_current_filename = v(xh, 'filename');
 	    eh_tag_set(eh_current_filename, eh_data_playing);
 	    $('trackcover').innerHTML =
-		'<img src="/image/cover/current?'+eh_current_filename+'"/>';
+		'<img src="image/cover/current?'+eh_current_filename+'"/>';
 	    $('ti_artist').innerHTML = v(xh, 'artist');
 	    $('ti_album').innerHTML = v(xh, 'album');
 	    $('ti_title').innerHTML = v(xh, 'title');
@@ -269,7 +269,7 @@ function eh_playlist_build() {
         if (parseInt(eh_cookie_get('eh_pref_playlist_rating', eh_pref_default_rating))) {
             var rating = '' + vd(eh_playlist[i], 'rating');
             rating = rating.replace(' ', '', 'g');
-            rating = rating.replace('*', '<img class="rating" src="/star.png"/>', 'g');
+            rating = rating.replace('*', '<img class="rating" src="star.png"/>', 'g');
             table.push('<td><div>' + rating + '</div></td>');
         }
         table.push('<tr>');
