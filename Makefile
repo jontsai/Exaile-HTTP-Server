@@ -3,10 +3,18 @@
 # Author: Jonathan Tsai <akajontsai-devel@yahoo.com>
 #
 
-all: httpserver.exz
+all: clean httpserver.exz
 
-httpserver.exz:
+httpserver.exz: httpserver/MANIFEST
+	echo "Creating plugin archive..."
 	tar czvf httpserver.exz httpserver
 
+httpserver/MANIFEST:
+	echo "Generating MANIFEST..."
+	find httpserver/data -type f | sed 's/httpserver\/data//' > httpserver/MANIFEST
+
 clean:
-	rm -rf *.exz
+	echo "Cleaning files..."
+	rm -f *.exz
+	rm -f httpserver/*.pyc
+	rm -f httpserver/MANIFEST

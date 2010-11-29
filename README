@@ -6,4 +6,6 @@ e.g. 0.3.101127.1
 - YYMMDD: 101127
 - Build number on YYMMDD: 1
 
-See httpserver/PLUGININFO
+For more info, see:
+    CHANGELOG
+    httpserver/PLUGININFO

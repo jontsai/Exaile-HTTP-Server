@@ -1,4 +1,4 @@
-Version='0.3.101127.1'
+Version='0.3.101129.1'
 Authors=['Jonathan Tsai <akajontsai-devel@yahoo.com>', 'Mathieu Virbel <tito@bankiz.org>']
 Name='HTTP Server Control'
 Description='A simple HTTP server + web frontend to Exaile. You can view the current playlist, change songs, do some actions on the current track, and view track. It is in xhtml/javascript, using XmlHTTPRequest.'

@@ -24,8 +24,12 @@ from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
 
 from xl import event, covers, xdg
 
+# config
 DEFAULT_PORT = 10000
-
+PLUGIN_DIR = '%(rootdir)s/plugins/httpserver/' % { 'rootdir': xdg.get_data_dirs()[0] }
+# used during life of plugin
+RESOURCES = None
+RESOURCE_LOOKUP = None
 APP = None
 eh_thread = None
 
@@ -201,13 +205,14 @@ def eh_page_file(r):
     r.send_header('Content-type', mime_type)
     r.end_headers()
 
-    path = r.path
-    print "PATH: " + path
+    path = r.path.split('?')[0]
     if path == '/':
         path = '/index.html'
-    data = open('%(rootdir)s/plugins/httpserver/data%(resource)s' % { 'rootdir': xdg.get_data_dirs()[0], 'resource': path } ).read()
-    r.wfile.write(data)
 
+    f = open('%(plugindir)s/data%(resource)s' % { 'plugindir': PLUGIN_DIR, 'resource': path } )
+    data = f.read()
+    f.close()
+    r.wfile.write(data)
 
 def eh_page_rpc_action(r):
     """
@@ -236,12 +241,14 @@ def eh_page_rpc_action(r):
         to_play = None
         if len(paths) > 1:
             args = cgi.parse_qs(paths[1])
-            print args
             if args.has_key('f') and args['f'] != '' and playlist is not None:
+                filearg = args['f'][0]
                 tracks = playlist.get_ordered_tracks()
                 for track in tracks:
-                    if track.get_tag_display('__loc') == args['f'][0]:
-                        print 'PLAYING filename=%s' % args['f'][0]
+                    print "FILENAME:", track.get_tag_display('__loc');
+                    print "PASSED IN:",filearg;
+                    if track.get_tag_display('__loc') == filearg:
+                        print 'PLAYING filename=%s' % filearg
                         to_play = track
         gobject.idle_add(APP.player._queue.play, to_play)
     elif path == '/rpc/action/seek':
@@ -281,10 +288,12 @@ def eh_page_playlist_list(r):
 # -----------------------------------------------------------------------------
 
 eh_pages = {
+    # Default
+    '/':                    eh_page_file,
     # Dynamic content
     '/image/cover/current': eh_page_cover_current,
 
-    # RPC url
+    # Remote Procedure Call
     '/rpc/current':         eh_page_rpc_current,
     '/rpc/action/play':     eh_page_rpc_action,
     '/rpc/action/stop':     eh_page_rpc_action,
@@ -296,33 +305,15 @@ eh_pages = {
     '/rpc/action/shuffle':  eh_page_rpc_action,
     '/rpc/action/dynamic':  eh_page_rpc_action,
     '/rpc/playlist/list':   eh_page_playlist_list,
-
-    # Data
-    '/':                    eh_page_file,
-    '/index.html':          eh_page_file,
-    '/exaile.css':          eh_page_file,
-    '/exaile.js':           eh_page_file,
-    '/prototype.js':        eh_page_file,
-    '/btn-play.png':        eh_page_file,
-    '/btn-stop.png':        eh_page_file,
-    '/btn-pause.png':       eh_page_file,
-    '/btn-next.png':        eh_page_file,
-    '/btn-previous.png':    eh_page_file,
-    '/btn-repeat.png':      eh_page_file,
-    '/btn-reload.png':      eh_page_file,
-    '/star.png':            eh_page_file,
-    '/btn-shuffle.png':     eh_page_file,
-    '/btn-dynamic.png':     eh_page_file,
-    '/loading.gif':         eh_page_file,
-    '/bg-trans.png':        eh_page_file,
     }
 
 class ExaileHttpRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-
         path = self.path.split('?')[0]
         if eh_pages.has_key(path):
             eh_pages[path](self)
+        elif RESOURCE_LOOKUP.has_key(path):
+            eh_page_file(self)
         else:
             self.send_error(404,'Not Found')
             return
@@ -350,10 +341,22 @@ class ExaileHttpThread(threading.Thread):
 # -----------------------------------------------------------------------------
 
 def initialize():
+    load_filelist()
     global eh_thread
     eh_thread = ExaileHttpThread()
     eh_thread.setDaemon(True)
     eh_thread.start()
+
+def load_filelist():
+    global RESOURCES
+    global RESOURCE_LOOKUP
+    filelist = open(PLUGIN_DIR + 'MANIFEST')
+    RESOURCES = [f.strip() for f in filelist.readlines()]
+    filelist.close()
+    RESOURCE_LOOKUP = dict()
+    for r in RESOURCES:
+        RESOURCE_LOOKUP[r] = 1
+# end load_filelist
 
 def destroy():
     global eh_thread

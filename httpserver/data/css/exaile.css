@@ -43,6 +43,22 @@ body {
     cursor: pointer;
 }
 
+#trackcontrol label {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.songFilter {
+    position: relative;
+    float: right;
+    padding-right: 20px;
+}
+
+#songContainer {
+    display: none;
+}
+
 #ti_title {
     font-size: 22px;
     padding: 5px 5px 5px 20px;
@@ -110,10 +126,19 @@ body {
     color: #ffffff;
 }
 
+#playlistcontent a.yui-dt-sortable {
+    color: #ffffff;
+}
+
 #playlistcontent table td {
-    border-top: 1px solid #eeeeee;
+    border-top: 1px solid #dddddd;
+    border-left: 1px dotted #dddddd;
     padding: 5px;
     cursor: pointer;
+}
+
+#playlistcontent table tr.striped {
+    background-color: #f0f0f0;
 }
 
 #playlistcontent table tr:hover {
@@ -146,7 +171,7 @@ div.info {
     width: 100%;
     top: 0px;
     position: fixed;
-    background: transparent url('bg-trans.png') top left repeat; 
+    background: transparent url('../img/bg-trans.png') top left repeat; 
     padding: 20px;
     color: #f0f0f0;
     font-size: 12px;

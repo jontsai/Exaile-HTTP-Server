@@ -1,0 +1,50 @@
+Version 0.3.101129.1 - Jonathan Tsai <akajontsai-devel@yahoo.com>
+--------------------
+- Added this CHANGELOG
+- Slightly improved Makefile with additional targets
+- Added a MANIFEST file for resources, so as not to have to keep adding resources as valid webserver requests manually in the Python code
+- Separated files into js/, css/, img/ directories
+- Escape song filenames in JavaScript (files with ampersand & were broken)
+- Probably some other stuff... mind is failing after coding for 12 hours
+
+UI Changes:
+- Changed playlist to YUI 2 Datatable <http://developer.yahoo.com/yui/datatable/>, along with sortable, drag and drop columns
+- Added song filter using YUI 2 AutoComplete <http://developer.yahoo.com/yui/autocomplete/>
+- Added alternate row striping, pretty!
+
+
+Broken/Todo:
+- Previous/Next still broken
+- "Playing" column is too wide
+
+Version 0.3.101127.1 - Jonathan Tsai <akajontsai-devel@yahoo.com>
+--------------------
+- Realized I was working off an older plugin archive from the launchpad, and didn't have seek function and other features
+- Added a Makefile to build httpserver.exz package and do some basic cleanup
+
+UI Changes:
+- Re-integrated seek function, prototype.js, prefs
+
+Broken/Todo:
+- Previous/Next still broken
+
+Version 0.3 - Jonathan Tsai <akajontsai-devel@yahoo.com>
+-----------
+- 2010 Thanksgiving holiday, enter scene: me!
+- Exaile HTTP Server plugin has been broken for a while now! First new development in 2 years
+- Provided wrapper for Exaile 0.3
+- Upgraded calls to new API (old one was obsolete)
+- Created GitHub project! <https://github.com/jontsai/Exaile-HTTP-Server>
+- Changed the rudimentary polling (if refresh did not clear for some reason, client in browser would get stuck) to a request-window + delay based refresh, and ignore responses for older requests if newer ones were already processed (unlikely scenario with a serial web server)
+
+UI Changes:
+- Add hover color
+- Add Shuffle, Repeat, Dynamic playlist buttons (and corresponding toggle backend functions)
+
+Broken/Todo:
+- Previous and Next don't work; they cause the client to flip out and skip songs repeatedly after playing for only a few seconds. Only way to quit is to kill Exaile client
+
+
+Version 0.1 - Mathieu Virbel <tito@bankiz.org>
+-----------
+- First version, around 2007 written by Mathieu Virbel <tito@bankiz.org>

@@ -1,11 +1,10 @@
 var eh_current_filename = '### INIT VALUE ###';
 var eh_current_duration = 0;
 var eh_request_refresh_playlist = false;
-//var eh_request_refresh = false;
 var eh_request_refresh_id = Math.floor(Math.random() * 1000);
 var eh_request_refresh_window = new Array();
-var eh_data_loading = '<div id="loading"><img class="loading" src="loading.gif" alt="Loading..."/></div>';
-var eh_data_playing = '<img src="btn-play.png" alt="Playing..."/>';
+var eh_data_loading = '<span id="loading"><img class="loading" src="img/loading.gif" alt="Loading..."/></span>';
+var eh_data_playing = '<img src="img/btn-play.png" alt="Playing..." title="Now Playing"/>';
 
 var eh_tag_current = 1;
 var eh_capture_seek = false;
@@ -22,6 +21,33 @@ var eh_pref_default_album = '1';
 var eh_pref_default_genre = '0';
 var eh_pref_default_duration = '1';
 var eh_pref_default_rating = '0';
+
+// Create a shortcut
+var Dom = YAHOO.util.Dom;
+
+// Globals for Data Source and Auto Complete
+var playlistDataSource = false;
+var playlistSchema = {
+    metaFields: [],
+    resultNode: 'track',
+    fields: [
+        { key: 'filename' },
+        { key: 'title' },
+        { key: 'artist' },
+        { key: 'album' },
+        { key: 'bitrate' },
+        { key: 'rating', parser: 'number' },
+        { key: 'len' },
+        { key: 'disc' },
+        { key: 'genre' },
+        { key: 'duration', parser: 'number' },
+   ]
+};
+var songAutoCompKeys = [{key:'title'},
+			{key:'artist'},
+			{key:'album'}
+			];
+var filteredSongs = [];
 
 function vd(el, name) {
     var e = el.getElementsByTagName(name);
@@ -68,6 +94,147 @@ function format_hms_time(seconds) {
     }
     return hms;
 }
+
+function formatRowFileBinding(elCell, oRecord, oColumn, oData) {
+    var tag = eh_tag_current++;
+    var data = oRecord.getData();
+    var filename = escape(data.filename);
+    var contents = '<input type="hidden" name="tag" value="' + tag + '" />';
+    eh_tag[filename] = tag;
+    eh_tag_filename[''+tag] = filename;
+    contents += '<div id="tag-' + tag + '" style="padding: 0px; width: 26px;"></div>';
+    elCell.innerHTML = contents;
+    eh_tag_set(eh_current_filename, eh_data_playing);
+}
+
+function formatPlaylistRow(elTr, oRecord) {
+    // add striping
+    if ( eh_tag_current % 2 == 0 ) {
+	Dom.addClass(elTr, 'striped');
+    }
+    return true;
+}
+
+function formatSongSearchResult(oResultData, sQuery, sResultMatch) {
+    var title = oResultData.title;
+    var artist = oResultData.artist;
+    var album = oResultData.album;
+    var filename = oResultData.filename;
+
+    // Bold matching portions of fields with query
+    var aMarkup = [];
+
+    // title
+    var titleIndex = title.toLowerCase().indexOf(sQuery.toLowerCase());
+    if (titleIndex >= 0) {
+	// before
+	aMarkup.push(title.substring(0, titleIndex));
+	aMarkup.push("<b>");
+	// matching portion
+	aMarkup.push(title.substring(titleIndex, titleIndex + sQuery.length));
+	aMarkup.push("</b>");
+	// remainder
+	aMarkup.push(title.substring(titleIndex + sQuery.length));
+    } else {
+	aMarkup.push(title);
+    }
+
+    aMarkup.push(' - ');
+
+    // artist
+    var artistIndex = artist.toLowerCase().indexOf(sQuery.toLowerCase());
+    if (artistIndex >= 0) {
+	// before
+	aMarkup.push(artist.substring(0, artistIndex));
+	aMarkup.push("<b>");
+	// matching portion
+	aMarkup.push(artist.substring(artistIndex, artistIndex + sQuery.length));
+	aMarkup.push("</b>");
+	// remainder
+	aMarkup.push(artist.substring(artistIndex + sQuery.length));
+    } else {
+	aMarkup.push(artist);
+    }
+
+    aMarkup.push(' - ');
+
+    // album
+    var albumIndex = album.toLowerCase().indexOf(sQuery.toLowerCase());
+    if (albumIndex >= 0) {
+	// before
+	aMarkup.push(album.substring(0, albumIndex));
+	aMarkup.push("<b>");
+	// matching portion
+	aMarkup.push(album.substring(albumIndex, albumIndex + sQuery.length));
+	aMarkup.push("</b>");
+	// remainder
+	aMarkup.push(album.substring(albumIndex + sQuery.length));
+    } else {
+	aMarkup.push(album);
+    }
+    //return aMarkup.join("");
+    return "";
+}
+
+function filterSongSearchResults(sQuery, oFullResponse, oParsedResponse, oCallback) {
+    // If AC has passed a query string value back to itself, grab it
+    if(oCallback && oCallback.argument && oCallback.argument.query) {
+        sQuery = oCallback.argument.query;
+    }
+
+    // Only if a query string is available to match against
+    if(sQuery && sQuery !== "") {
+        // First make a copy of the oParseResponse
+        oParsedResponse = YAHOO.widget.AutoComplete._cloneObject(oParsedResponse);
+        
+        var oAC = oCallback.scope;
+	var oDS = this;
+	var allResults = oParsedResponse.results; // the array of results
+	filteredSongs = []; // container for filtered results, reset
+	var bMatchCase = (oDS.queryMatchCase || oAC.queryMatchCase); // backward compat
+	var bMatchContains = (oDS.queryMatchContains || oAC.queryMatchContains); // backward compat
+            
+        // Loop through each result object...
+        for(var i=0, len=allResults.length; i<len; i++) {
+	    var oResult = allResults[i];
+
+	    // Grab the data to match against from the result object...
+	    var sResults = [];
+	    // use all responseSchema fields to match
+	    //var fields = this.responseSchema.fields;
+	    // Or use only specific fields
+	    var fields = songAutoCompKeys;
+	    for (var j=0, fieldLen = fields.length; j < fieldLen; ++j) {
+		var key = fields[j].key;
+		sResults.push(oResult[key]);
+	    }
+	    var matched = false;
+	    for (var j=0, resultLen = sResults.length; j < resultLen && !matched; ++j) {
+		var sResult = sResults[j];
+		var sKeyIndex = (bMatchCase) ?
+		    sResult.indexOf(decodeURIComponent(sQuery)) :
+		    sResult.toLowerCase().indexOf(decodeURIComponent(sQuery).toLowerCase());
+
+		// A STARTSWITH match is when the query is found at the beginning of the key string...
+		if((!bMatchContains && (sKeyIndex === 0)) ||
+		   // A CONTAINS match is when the query is found anywhere within the key string...
+		   (bMatchContains && (sKeyIndex > -1))) {
+		    // Stash the match
+		    filteredSongs.push(oResult);
+		    matched = true;
+		}
+	    }
+        }
+        oParsedResponse.results = filteredSongs;
+        YAHOO.log("Filtered " + filteredSongs.length + " results against query \""  + sQuery + "\": " + YAHOO.lang.dump(filteredSongs), "info", this.toString());
+    } else {
+	// No query, return everything
+	filteredSongs = oParsedResponse.results;
+    }
+    eh_playlist_build();
+    return oParsedResponse;
+}
+
 
 function eh_cookie_set(name, value, expires, path, domain, secure) {
     var today = new Date();
@@ -134,7 +301,6 @@ function eh_track_current_callback(page, xh) {
 	}
 	delete eh_request_refresh_window[request_id];
 	// continue processing
-	//eh_request_refresh = false;
 	if (!xh.responseXML)
 	    return;
 	eh_is_playing = false;
@@ -145,7 +311,7 @@ function eh_track_current_callback(page, xh) {
 	    eh_is_paused = true;
 	if (v(xh, 'filename') != eh_current_filename) {
 	    eh_tag_set(eh_current_filename, '');
-	    eh_current_filename = v(xh, 'filename');
+	    eh_current_filename = escape(v(xh, 'filename'));
 	    eh_tag_set(eh_current_filename, eh_data_playing);
 	    $('trackcover').innerHTML =
 		'<img src="image/cover/current?'+eh_current_filename+'"/>';
@@ -194,7 +360,6 @@ function eh_track_current_callback(page, xh) {
 	    }
 	}
 	*/
-
     }
 }
 
@@ -217,73 +382,79 @@ function eh_tag_set(filename, data) {
 
 function eh_playlist_list_callback(page, xh) {
     eh_request_refresh_playlist = false;
-    eh_playlist = xh.responseXML.getElementsByTagName('track');
+    eh_playlist = xh.responseXML;
+    filteredSongs = eh_playlist;
+    playlistDataSource = new YAHOO.util.LocalDataSource( eh_playlist );
+    playlistDataSource.responseSchema = playlistSchema
+    eh_songfilter_build();
     eh_playlist_build();
 }
 
-function eh_playlist_build() {
-    if (eh_playlist == false)
-        return;
-
-    var rating;
-    var duration;
-    var duration_min;
-
-    table = new Array();
-    table.push('<table id="playlisttbl">');
-    table.push('<tr><th style="width: 26px"></th>');
-    table.push('<th>Title</th>');
-    if (parseInt(eh_cookie_get('eh_pref_playlist_artist', eh_pref_default_artist)))
-        table.push('<th style="width: 20%">Artist</th>');
-    if (parseInt(eh_cookie_get('eh_pref_playlist_album', eh_pref_default_album)))
-        table.push('<th style="width: 20%">Album</th>');
-    if (parseInt(eh_cookie_get('eh_pref_playlist_genre', eh_pref_default_genre)))
-        table.push('<th style="width: 100px">Genre</th>');
-    if (parseInt(eh_cookie_get('eh_pref_playlist_duration', eh_pref_default_duration)))
-        table.push('<th style="width: 30px">Duration</th>');
-    if (parseInt(eh_cookie_get('eh_pref_playlist_rating', eh_pref_default_rating)))
-        table.push('<th style="width: 100px">Rating</th>');
-    table.push('</tr>');
-
-    eh_tag = new Array();
-    eh_tag_filename = new Array();
-    for ( var i = 0; i < eh_playlist.length; i++ ) {
-        var filename = vd(eh_playlist[i], 'filename');
-        var tag = eh_tag_current++;
-        eh_tag[filename] = tag;
-        eh_tag_filename[''+tag] = filename;
-        table.push('<tr id="tagth-' + tag + '" onclick="eh_playtrack('+tag+')">');
-        table.push('<td id="tag-' + tag + '"></td>');
-        table.push('<td><div>' + vd(eh_playlist[i], 'title') + '</div></td>');
-        if (parseInt(eh_cookie_get('eh_pref_playlist_artist', eh_pref_default_artist)))
-            table.push('<td><div>' + vd(eh_playlist[i], 'artist') + '</div></td>');
-        if (parseInt(eh_cookie_get('eh_pref_playlist_album', eh_pref_default_album)))
-            table.push('<td><div>' + vd(eh_playlist[i], 'album') + '</div></td>');
-        if (parseInt(eh_cookie_get('eh_pref_playlist_genre', eh_pref_default_genre)))
-            table.push('<td><div>' + vd(eh_playlist[i], 'genre') + '</div></td>');
-        if (parseInt(eh_cookie_get('eh_pref_playlist_duration', eh_pref_default_duration))) {
-            duration = parseInt(vd(eh_playlist[i], 'duration'));
-        var hms = format_hms_time(duration);
-            table.push('<td><div>' + hms + '</div></td>');
-        }
-        if (parseInt(eh_cookie_get('eh_pref_playlist_rating', eh_pref_default_rating))) {
-            var rating = '' + vd(eh_playlist[i], 'rating');
-            rating = rating.replace(' ', '', 'g');
-            rating = rating.replace('*', '<img class="rating" src="star.png"/>', 'g');
-            table.push('<td><div>' + rating + '</div></td>');
-        }
-        table.push('<tr>');
-    }
-
-    $('playlistcontent').innerHTML = table.join('');
-    eh_tag_set(eh_current_filename, eh_data_playing);
+function eh_songfilter_build() {
+    var songAutoComp = new YAHOO.widget.AutoComplete('songSearch', 'songContainer', playlistDataSource);
+    // Autocomplete Widget Behavior
+    songAutoComp.maxResultsDisplayed = 1; // limit display results to minimum
+    songAutoComp.alwaysShowContainer = false;
+    songAutoComp.minQueryLength = 0;
+    songAutoComp.queryDelay = 0.5;
+    songAutoComp.forceSelection = false; // do not force selection or clear
+    songAutoComp.typeAhead = false;
+    songAutoComp.allowBrowserAutocomplete = false;
+    // Result Filtering
+    songAutoComp.filterResults = filterSongSearchResults;
+    // Result Format
+    songAutoComp.resultTypeList = false; // allow object-literal
+    songAutoComp.formatResult = formatSongSearchResult;
 }
 
-function eh_playtrack(t) {
-    var tag = eh_tag_filename[''+t];
-    if (!tag || tag == '')
-        return;
-    x('rpc/action/play?f='+tag, false);
+function eh_playlist_build() {
+    // Data Source is bound to autocomplete
+    var oDS = new YAHOO.util.LocalDataSource(filteredSongs);
+    oDS.responseSchema = playlistSchema;
+    // Column Definitions
+    var playlistColumns = Array();
+    playlistColumns.push( { label:'Playing', formatter: formatRowFileBinding, width:'26px', resizeable: false } );
+    playlistColumns.push( { key:'title', label:'Title', sortable: true } );
+    if (parseInt(eh_cookie_get('eh_pref_playlist_artist', eh_pref_default_artist))) {
+	playlistColumns.push( { key:'artist', label:'Artist', width:'20%', sortable: true } );
+    }
+    if (parseInt(eh_cookie_get('eh_pref_playlist_album', eh_pref_default_album))) {
+	playlistColumns.push( { key:'album', label:'Album', width:'20%', sortable: true } );
+    }
+    if (parseInt(eh_cookie_get('eh_pref_playlist_genre', eh_pref_default_genre))) {
+	playlistColumns.push( { key:'genre', label:'Genre', width:'100px', sortable: true } );
+    }
+    if (parseInt(eh_cookie_get('eh_pref_playlist_duration', eh_pref_default_duration))) {
+	playlistColumns.push( { key:'len', label:'Duration', width:'30px', sortable: true, sortOptions: { field: 'duration' } } );
+    }
+    if (parseInt(eh_cookie_get('eh_pref_playlist_rating', eh_pref_default_rating))) {
+	playlistColumns.push( { key:'rating', label:'Rating', width:'100px', sortable: true } );
+    }
+
+    var dataTableOptions = { formatRow: formatPlaylistRow,
+			     draggableColumns: true,
+			     renderLoopSize: 150,
+			     selectionMode: 'single',
+			     MSG_LOADING: 'Playlist loading...',
+			     MSG_EMPTY: 'There are no songs are on the playlist.',
+			     MSG_ERROR: 'Error: Could not load playlist.',
+    };
+    var playlistDataTable = new YAHOO.widget.DataTable('playlistcontent', playlistColumns, oDS, dataTableOptions);
+    playlistDataTable.subscribe('rowClickEvent', eh_playtrack);
+}
+
+function eh_playtrack(oArgs) {
+    // oArgs has target, event
+    var t = oArgs.target;
+    var inputs = t.getElementsByTagName('input');
+    for (var i=0; i < inputs.length; ++i) {
+	if (inputs[i].name == 'tag') {
+	    var tag = inputs[i].value;
+	    var filename = eh_tag_filename[''+tag];
+	    x('rpc/action/play?f=' + filename, false);
+	    break;
+	}
+    }
 }
 
 function eh_refresh() {
@@ -292,7 +463,6 @@ function eh_refresh() {
     // This prevents a request never getting answered, and the app getting stuck
     var interval = 1000 * parseInt(''+eh_cookie_get('eh_pref_refreshtime', 1));
     var delay = interval * eh_request_refresh_window.length;
-    //eh_request_refresh = true;
     // Add the request_id to the response window
     eh_request_refresh_window['_' + eh_request_refresh_id] = true;
     // Make request
